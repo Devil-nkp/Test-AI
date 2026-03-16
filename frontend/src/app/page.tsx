@@ -1,158 +1,295 @@
 'use client';
 /**
- * PrepVista AI — Landing Page
- * Public marketing page with hero, features, how-it-works, pricing preview.
+ * PrepVista AI - Landing Page
+ * Public marketing page with polished motion, pricing preview, and trust messaging.
  */
 
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
+import { useTheme } from '@/lib/theme-context';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { LogoMark } from '@/components/logo-mark';
+
+const featureCards = [
+  {
+    title: 'Resume-grounded questions',
+    desc: 'Every interview is tailored to your projects, tools, wins, and tradeoffs so the practice feels real.',
+  },
+  {
+    title: 'Actionable scoring',
+    desc: 'See which answers lacked ownership, technical depth, structure, or confidence so improvement is obvious.',
+  },
+  {
+    title: 'Voice-first practice',
+    desc: 'Answer out loud, keep your flow, and build the delivery rhythm that text-based prep usually misses.',
+  },
+  {
+    title: 'Focus mode simulation',
+    desc: 'Practice under light pressure with fullscreen and camera checks so interviews feel calmer later.',
+  },
+];
+
+const planPreview = [
+  { name: 'Free', price: '$0', detail: 'You have 2 free interviews/month.', accent: false },
+  { name: 'Pro', price: '$19', detail: 'Rubrics, ideal answers, PDF exports, and more depth.', accent: true },
+  { name: 'Career', price: '$39', detail: 'Built for daily practice loops during active job search.', accent: false },
+];
 
 export default function HomePage() {
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* ── Nav ── */}
-      <nav className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600" />
-          <span className="text-xl font-bold text-slate-900">PrepVista AI</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <Link href="/pricing" className="text-sm text-slate-600 hover:text-blue-600 transition-colors">Pricing</Link>
-          {user ? (
-            <Link href="/dashboard" className="btn-primary text-sm !py-2 !px-5">Dashboard</Link>
-          ) : (
-            <>
-              <Link href="/login" className="text-sm text-slate-600 hover:text-blue-600 transition-colors">Log in</Link>
-              <Link href="/login?mode=signup" className="btn-primary text-sm !py-2 !px-5">Start Free →</Link>
-            </>
-          )}
-        </div>
-      </nav>
+    <div
+      className={`public-theme min-h-screen overflow-hidden ${
+        isDark ? 'bg-slate-950 text-slate-100' : 'bg-white text-slate-900'
+      }`}
+      data-theme={theme}
+    >
+      <div className="public-aurora" />
+      <div className="public-grid" />
 
-      {/* ── Hero ── */}
-      <section className="text-center px-6 pt-16 pb-20 max-w-4xl mx-auto">
-        <div className="inline-block mb-6 px-4 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
-          AI Interview Coaching Platform
-        </div>
-        <h1 className="text-5xl sm:text-6xl font-extrabold text-slate-900 leading-tight mb-6">
-          Practice interviews that are<br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">actually about you.</span>
-        </h1>
-        <p className="text-xl text-slate-500 max-w-2xl mx-auto mb-10 leading-relaxed">
-          Upload your resume. Answer real voice questions grounded in your experience.
-          Get a scored report showing exactly how you should have answered.
-        </p>
-        <div className="flex items-center justify-center gap-4">
-          <Link href={user ? "/dashboard" : "/login?mode=signup"} className="btn-primary text-lg !py-3.5 !px-8">
-            Start Free Interview →
+      <div className="relative mx-auto max-w-6xl px-6 py-5">
+        <nav className="page-enter flex items-center justify-between gap-4">
+          <Link href="/" className="inline-flex items-center gap-3">
+            <LogoMark size="md" />
+            <div>
+              <span className={`block text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                PrepVista AI
+              </span>
+              <span className={`block text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                Interview practice that sounds like you
+              </span>
+            </div>
           </Link>
-          <Link href="/pricing" className="btn-secondary text-lg !py-3.5 !px-8">
-            View Plans
-          </Link>
-        </div>
-        <p className="mt-4 text-sm text-slate-400">No credit card required. 2 free interviews/month.</p>
 
-        {/* Orb preview */}
-        <div className="mt-16 flex justify-center">
-          <div className="orb" />
-        </div>
-      </section>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <Link href="/pricing" className={`hidden text-sm sm:inline ${isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-blue-600'}`}>
+              Pricing
+            </Link>
+            {user ? (
+              <Link href="/dashboard" className="btn-primary text-sm !px-5 !py-2.5">
+                Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" className={`hidden text-sm sm:inline ${isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-blue-600'}`}>
+                  Log in
+                </Link>
+                <Link href="/login?mode=signup" className="btn-primary text-sm !px-5 !py-2.5">
+                  Start free
+                </Link>
+              </>
+            )}
+          </div>
+        </nav>
 
-      {/* ── How It Works ── */}
-      <section className="bg-slate-50 py-20 px-6">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-slate-900 mb-4">How It Works</h2>
-          <p className="text-center text-slate-500 mb-12">Three steps to better interview performance.</p>
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              { step: "1", title: "Upload Your Resume", desc: "We generate questions based on your actual projects, skills, and experience — not a generic question bank." },
-              { step: "2", title: "Voice Interview", desc: "Speak your answers naturally. Our AI interviewer adapts follow-up questions based on what you say." },
-              { step: "3", title: "Get Coached", desc: "See your score, per-question breakdown, and exactly how you should have answered each question." },
-            ].map((item) => (
-              <div key={item.step} className="card text-center">
-                <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-600 font-bold text-xl flex items-center justify-center mx-auto mb-5">
-                  {item.step}
-                </div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">{item.title}</h3>
-                <p className="text-slate-500 text-sm leading-relaxed">{item.desc}</p>
+        <section className="relative pt-14 pb-18">
+          <div className="grid items-center gap-14 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="page-enter-delay-1">
+              <span className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium ${
+                isDark
+                  ? 'border-sky-400/20 bg-sky-400/10 text-sky-200'
+                  : 'border-blue-100 bg-blue-50 text-blue-700'
+              }`}>
+                <span className={`h-2.5 w-2.5 rounded-full ${isDark ? 'bg-sky-300' : 'bg-blue-500'}`} />
+                AI interview coaching platform
+              </span>
+
+              <h1 className="mt-7 max-w-3xl text-5xl font-semibold leading-[1.02] tracking-tight sm:text-6xl">
+                Practice interviews that feel
+                <span className={`block ${isDark ? 'text-sky-300' : 'text-blue-600'}`}>specific, sharp, and believable.</span>
+              </h1>
+
+              <p className={`mt-6 max-w-2xl text-lg leading-8 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                Upload your resume, answer voice-first questions, and get coaching that surfaces missing detail,
+                vague ownership, weak structure, and stronger ideal answers.
+              </p>
+
+              <div className="mt-9 flex flex-wrap items-center gap-4">
+                <Link href={user ? '/dashboard' : '/login?mode=signup'} className="btn-primary text-base !px-7 !py-3.5">
+                  {user ? 'Go to dashboard' : 'Start free interview'}
+                </Link>
+                <Link href="/pricing" className={isDark ? 'btn-secondary text-base !px-7 !py-3.5 !bg-slate-900/70 !text-slate-100 !border-slate-700' : 'btn-secondary text-base !px-7 !py-3.5'}>
+                  Explore plans
+                </Link>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* ── Features ── */}
-      <section className="py-20 px-6">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-slate-900 mb-12">Why PrepVista AI?</h2>
-          <div className="grid md:grid-cols-2 gap-6">
-            {[
-              { title: "Resume-Grounded Questions", desc: "Every question comes from YOUR experience. No generic prompts." },
-              { title: "Per-Question Scoring", desc: "Rubric-based evaluation with specific feedback on what's missing." },
-              { title: "Ideal Answer Coaching", desc: "See exactly what a strong answer looks like — for every question." },
-              { title: "Skill Tracking", desc: "Monitor your improvement across sessions and focus on weak areas." },
-              { title: "Focus Mode", desc: "Camera and fullscreen monitoring to simulate real interview pressure." },
-              { title: "Privacy First", desc: "Camera and mic streams are processed locally. Never sent to our servers." },
-            ].map((f) => (
-              <div key={f.title} className="card flex gap-4">
-                <div className="w-2 h-2 rounded-full bg-blue-600 mt-2 flex-shrink-0" />
-                <div>
-                  <h3 className="font-semibold text-slate-900 mb-1">{f.title}</h3>
-                  <p className="text-slate-500 text-sm">{f.desc}</p>
+              <p className={`mt-5 text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                You have 2 free interviews/month.
+              </p>
+
+              <div className="mt-9 flex flex-wrap gap-6 text-sm">
+                {['Resume-based questions', 'Voice practice', 'Scored report', 'Calm, professional UI'].map((item) => (
+                  <div key={item} className={`inline-flex items-center gap-2 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                    <span className={`h-2 w-2 rounded-full ${isDark ? 'bg-sky-300' : 'bg-blue-500'}`} />
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="page-enter-delay-2">
+              <div className={`theme-rings relative overflow-hidden rounded-[2rem] border p-7 shadow-[0_30px_100px_rgba(15,23,42,0.18)] ${
+                isDark ? 'border-white/10 bg-slate-900/70 backdrop-blur' : 'border-white/80 bg-white/90 backdrop-blur'
+              }`}>
+                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-300/70 to-transparent" />
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`text-xs font-semibold uppercase tracking-[0.24em] ${isDark ? 'text-sky-200' : 'text-blue-600'}`}>
+                      Live interview preview
+                    </p>
+                    <p className={`mt-2 text-sm ${isDark ? 'text-slate-300' : 'text-slate-500'}`}>
+                      Your interviewer adapts in real time.
+                    </p>
+                  </div>
+                  <div className="relative">
+                    <div className="orb" />
+                  </div>
+                </div>
+
+                <div className="mt-8 space-y-4">
+                  {[
+                    'Tell me about the hardest production bug you owned end-to-end.',
+                    'Why did you choose that architecture and what would you change now?',
+                    'If this same incident happened tomorrow, how would you shorten recovery time?',
+                  ].map((question, index) => (
+                    <div
+                      key={question}
+                      className={`rounded-2xl border px-4 py-4 page-enter-delay-${Math.min(index + 1, 4)} ${
+                        index === 0
+                          ? isDark
+                            ? 'border-sky-400/20 bg-sky-400/10'
+                            : 'border-blue-100 bg-blue-50'
+                          : isDark
+                            ? 'border-white/8 bg-white/5'
+                            : 'border-slate-100 bg-slate-50'
+                      }`}
+                    >
+                      <p className={`text-sm leading-7 ${isDark ? 'text-slate-100' : 'text-slate-700'}`}>{question}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                  {[
+                    ['Ownership', '9.1/10'],
+                    ['Structure', '8.4/10'],
+                    ['Specificity', '7.8/10'],
+                  ].map(([label, value]) => (
+                    <div key={label} className={`rounded-2xl border px-4 py-4 ${isDark ? 'border-white/10 bg-slate-950/60' : 'border-slate-100 bg-white'}`}>
+                      <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>{label}</p>
+                      <p className="mt-2 text-2xl font-semibold">{value}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Trust ── */}
-      <section className="bg-slate-900 text-white py-16 px-6">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-2xl font-bold mb-6">Built for Trust</h2>
-          <div className="grid sm:grid-cols-3 gap-6 text-sm">
-            <div className="bg-slate-800 rounded-lg p-5">
-              <p className="font-semibold mb-1">🎥 Local Processing</p>
-              <p className="text-slate-400">Camera and microphone streams are processed in your browser and never sent to our servers.</p>
-            </div>
-            <div className="bg-slate-800 rounded-lg p-5">
-              <p className="font-semibold mb-1">🔒 Encrypted Storage</p>
-              <p className="text-slate-400">Your resume text is encrypted at rest and used only to generate interview questions.</p>
-            </div>
-            <div className="bg-slate-800 rounded-lg p-5">
-              <p className="font-semibold mb-1">🗑️ Delete Anytime</p>
-              <p className="text-slate-400">Delete all your data anytime from account settings. No questions asked.</p>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── CTA ── */}
-      <section className="py-20 px-6 text-center">
-        <h2 className="text-3xl font-bold text-slate-900 mb-4">Ready to practice?</h2>
-        <p className="text-slate-500 mb-8">Start your first interview free. No credit card, no commitment.</p>
-        <Link href={user ? "/dashboard" : "/login?mode=signup"} className="btn-primary text-lg !py-3.5 !px-8">
-          Start Free Interview →
-        </Link>
-      </section>
+        <section className="grid gap-5 py-10 md:grid-cols-2 xl:grid-cols-4">
+          {featureCards.map((card, index) => (
+            <div
+              key={card.title}
+              className={`page-enter-delay-${Math.min(index + 1, 4)} rounded-[1.5rem] border p-6 ${
+                isDark ? 'border-white/10 bg-white/5' : 'border-slate-100 bg-white shadow-[0_14px_40px_rgba(15,23,42,0.06)]'
+              }`}
+            >
+              <div className={`mb-4 h-11 w-11 rounded-2xl ${isDark ? 'bg-sky-400/12 text-sky-200' : 'bg-blue-50 text-blue-700'} flex items-center justify-center text-lg`}>
+                {index + 1}
+              </div>
+              <h2 className="text-lg font-semibold">{card.title}</h2>
+              <p className={`mt-3 text-sm leading-7 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{card.desc}</p>
+            </div>
+          ))}
+        </section>
 
-      {/* ── Footer ── */}
-      <footer className="border-t border-slate-200 py-8 px-6">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-gradient-to-br from-blue-600 to-indigo-600" />
-            <span className="font-semibold text-slate-700">PrepVista AI</span>
+        <section className="py-12">
+          <div className={`page-enter rounded-[2rem] border p-8 ${
+            isDark ? 'border-white/10 bg-slate-900/70' : 'border-slate-100 bg-slate-50'
+          }`}>
+            <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className={`text-sm font-semibold uppercase tracking-[0.24em] ${isDark ? 'text-sky-300' : 'text-blue-600'}`}>
+                  Pricing
+                </p>
+                <h2 className="mt-3 text-3xl font-semibold tracking-tight">Clear plans that scale with your prep</h2>
+                <p className={`mt-3 max-w-2xl text-sm leading-7 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                  Start free, then unlock deeper reports, longer interviews, and richer coaching when you need it.
+                </p>
+              </div>
+              <Link href="/pricing" className={isDark ? 'btn-secondary !px-5 !py-2.5 !bg-slate-950/70 !text-slate-100 !border-slate-700' : 'btn-secondary !px-5 !py-2.5'}>
+                Open pricing
+              </Link>
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-3">
+              {planPreview.map((plan, index) => (
+                <div
+                  key={plan.name}
+                  className={`page-enter-delay-${Math.min(index + 1, 4)} rounded-[1.6rem] border p-6 ${
+                    plan.accent
+                      ? isDark
+                        ? 'border-sky-400/30 bg-[linear-gradient(180deg,rgba(14,165,233,0.16),rgba(15,23,42,0.86))] shadow-[0_24px_80px_rgba(56,189,248,0.16)]'
+                        : 'border-blue-200 bg-[linear-gradient(180deg,#eff6ff,#ffffff)] shadow-[0_24px_70px_rgba(37,99,235,0.12)]'
+                      : isDark
+                        ? 'border-white/10 bg-white/5'
+                        : 'border-slate-100 bg-white'
+                  }`}
+                >
+                  {plan.accent && (
+                    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${
+                      isDark ? 'bg-sky-400/15 text-sky-200' : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      Most popular
+                    </span>
+                  )}
+                  <h3 className="mt-4 text-2xl font-semibold">{plan.name}</h3>
+                  <p className="mt-3 text-4xl font-semibold tracking-tight">{plan.price}</p>
+                  <p className={`mt-4 text-sm leading-7 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{plan.detail}</p>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="flex gap-6 text-sm text-slate-400">
-            <Link href="/pricing" className="hover:text-slate-600">Pricing</Link>
-            <a href="#" className="hover:text-slate-600">Privacy Policy</a>
-            <a href="#" className="hover:text-slate-600">Terms</a>
+        </section>
+
+        <section className="py-14">
+          <div className={`page-enter rounded-[2rem] border px-8 py-10 text-center ${
+            isDark ? 'border-white/10 bg-white/5' : 'border-slate-100 bg-white shadow-[0_16px_70px_rgba(15,23,42,0.06)]'
+          }`}>
+            <h2 className="text-3xl font-semibold tracking-tight">Ready to hear your answers get sharper?</h2>
+            <p className={`mx-auto mt-4 max-w-2xl text-sm leading-7 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              Start with a free session, see where your delivery breaks down, and build momentum with clear coaching.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+              <Link href={user ? '/dashboard' : '/login?mode=signup'} className="btn-primary text-base !px-7 !py-3.5">
+                {user ? 'Open dashboard' : 'Create free account'}
+              </Link>
+              <Link href="/pricing" className={isDark ? 'btn-secondary text-base !px-7 !py-3.5 !bg-slate-950/70 !text-slate-100 !border-slate-700' : 'btn-secondary text-base !px-7 !py-3.5'}>
+                Compare plans
+              </Link>
+            </div>
           </div>
-          <p className="text-sm text-slate-400">© 2026 PrepVista AI</p>
-        </div>
-      </footer>
+        </section>
+
+        <footer className={`flex flex-col items-center justify-between gap-5 border-t py-8 text-sm sm:flex-row ${
+          isDark ? 'border-white/10 text-slate-400' : 'border-slate-200 text-slate-500'
+        }`}>
+          <div className="inline-flex items-center gap-3">
+            <LogoMark size="sm" />
+            <span className="font-medium">PrepVista AI</span>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-5">
+            <Link href="/pricing" className="hover:text-inherit">Pricing</Link>
+            <Link href="/privacy" className="hover:text-inherit">Privacy Policy</Link>
+            <Link href="/terms" className="hover:text-inherit">Terms</Link>
+          </div>
+          <p>(c) 2026 PrepVista AI</p>
+        </footer>
+      </div>
     </div>
   );
 }

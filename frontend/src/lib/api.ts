@@ -5,9 +5,33 @@
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+export interface ApiUser {
+  id: string;
+  email: string;
+  full_name: string | null;
+  plan: string;
+  subscription_status: string;
+  onboarding_completed: boolean;
+  prep_goal: string | null;
+  usage: { plan: string; used: number; limit: number; remaining: number };
+}
+
+interface AuthTokensResponse {
+  access_token: string;
+  refresh_token: string;
+}
+
+interface ErrorDetailObject {
+  message?: string;
+}
+
+interface ErrorResponse {
+  detail?: string | ErrorDetailObject | unknown;
+}
+
 interface ApiOptions {
-  method?: string;
-  body?: any;
+  method?: RequestInit['method'];
+  body?: BodyInit | Record<string, unknown> | null;
   headers?: Record<string, string>;
   isFormData?: boolean;
 }
@@ -48,7 +72,7 @@ class ApiClient {
     return this.token;
   }
 
-  async request(path: string, options: ApiOptions = {}): Promise<any> {
+  async request<T = unknown>(path: string, options: ApiOptions = {}): Promise<T> {
     const { method = 'GET', body, headers = {}, isFormData = false } = options;
 
     const requestHeaders: Record<string, string> = { ...headers };
@@ -65,11 +89,18 @@ class ApiClient {
       headers: requestHeaders,
     };
 
-    if (body) {
-      config.body = isFormData ? body : JSON.stringify(body);
+    if (body !== undefined && body !== null) {
+      config.body = isFormData ? body as BodyInit : JSON.stringify(body);
     }
 
-    const response = await fetch(`${API_URL}${path}`, config);
+    let response: Response;
+    try {
+      response = await fetch(`${API_URL}${path}`, config);
+    } catch {
+      throw new Error(
+        'Unable to reach the PrepVista backend. Check NEXT_PUBLIC_API_URL and make sure the backend allows your frontend domain.'
+      );
+    }
 
     // Handle 401 — try token refresh
     if (response.status === 401 && this.refreshToken) {
@@ -78,7 +109,7 @@ class ApiClient {
         requestHeaders['Authorization'] = `Bearer ${this.token}`;
         const retryResponse = await fetch(`${API_URL}${path}`, { ...config, headers: requestHeaders });
         if (!retryResponse.ok) throw await this.parseError(retryResponse);
-        return retryResponse.json();
+        return retryResponse.json() as Promise<T>;
       }
     }
 
@@ -86,7 +117,7 @@ class ApiClient {
       throw await this.parseError(response);
     }
 
-    return response.json();
+    return response.json() as Promise<T>;
   }
 
   private async tryRefresh(): Promise<boolean> {
@@ -97,20 +128,29 @@ class ApiClient {
         body: JSON.stringify({ refresh_token: this.refreshToken }),
       });
       if (resp.ok) {
-        const data = await resp.json();
+        const data = await resp.json() as AuthTokensResponse;
         this.setTokens(data.access_token, data.refresh_token);
         return true;
       }
-    } catch (e) { /* refresh failed */ }
+    } catch { /* refresh failed */ }
     this.clearTokens();
     return false;
   }
 
   private async parseError(response: Response): Promise<Error> {
     try {
-      const data = await response.json();
-      const detail = typeof data.detail === 'string' ? data.detail :
-                     data.detail?.message || JSON.stringify(data.detail) || 'An error occurred';
+      const data = await response.json() as ErrorResponse;
+      const detail =
+        typeof data.detail === 'string'
+          ? data.detail
+          : typeof data.detail === 'object' &&
+              data.detail !== null &&
+              'message' in data.detail &&
+              typeof (data.detail as ErrorDetailObject).message === 'string'
+            ? (data.detail as ErrorDetailObject).message
+            : data.detail
+              ? JSON.stringify(data.detail)
+              : 'An error occurred';
       return new Error(detail);
     } catch {
       return new Error(`Request failed with status ${response.status}`);
@@ -119,7 +159,7 @@ class ApiClient {
 
   // ── Auth ─────────────────────────────────
   async signup(email: string, password: string, fullName: string) {
-    const data = await this.request('/auth/signup', {
+    const data = await this.request<AuthTokensResponse>('/auth/signup', {
       method: 'POST',
       body: { email, password, full_name: fullName },
     });
@@ -128,7 +168,7 @@ class ApiClient {
   }
 
   async login(email: string, password: string) {
-    const data = await this.request('/auth/login', {
+    const data = await this.request<AuthTokensResponse>('/auth/login', {
       method: 'POST',
       body: { email, password },
     });
@@ -136,8 +176,8 @@ class ApiClient {
     return data;
   }
 
-  async getMe() {
-    return this.request('/auth/me');
+  async getMe<T = ApiUser>() {
+    return this.request<T>('/auth/me');
   }
 
   async completeOnboarding(prepGoal: string, fullName: string) {
@@ -152,72 +192,79 @@ class ApiClient {
   }
 
   // ── Dashboard ────────────────────────────
-  async getDashboard() {
-    return this.request('/dashboard');
+  async getDashboard<T = unknown>() {
+    return this.request<T>('/dashboard');
   }
 
-  async getSessionHistory(limit = 20, offset = 0) {
-    return this.request(`/dashboard/sessions?limit=${limit}&offset=${offset}`);
+  async getSessionHistory<T = unknown>(limit = 20, offset = 0) {
+    return this.request<T>(`/dashboard/sessions?limit=${limit}&offset=${offset}`);
   }
 
-  async getSkills() {
-    return this.request('/dashboard/skills');
+  async getSkills<T = unknown>() {
+    return this.request<T>('/dashboard/skills');
   }
 
   // ── Interviews ────────────────────────────
-  async setupInterview(formData: FormData) {
-    return this.request('/interviews/setup', {
+  async setupInterview<T = unknown>(formData: FormData) {
+    return this.request<T>('/interviews/setup', {
       method: 'POST',
       body: formData,
       isFormData: true,
     });
   }
 
-  async submitAnswer(sessionId: string, userText: string, accessToken: string) {
-    return this.request(`/interviews/${sessionId}/answer`, {
+  async submitAnswer<T = unknown>(sessionId: string, userText: string, accessToken: string) {
+    return this.request<T>(`/interviews/${sessionId}/answer`, {
       method: 'POST',
       body: { user_text: userText, access_token: accessToken },
     });
   }
 
-  async finishInterview(sessionId: string, accessToken: string, durationActual?: number) {
-    return this.request(`/interviews/${sessionId}/finish`, {
+  async finishInterview<T = unknown>(sessionId: string, accessToken: string, durationActual?: number) {
+    return this.request<T>(`/interviews/${sessionId}/finish`, {
       method: 'POST',
       body: { access_token: accessToken, duration_actual: durationActual },
     });
   }
 
-  async reportViolation(sessionId: string, accessToken: string, type: string, detail: string) {
-    return this.request(`/interviews/${sessionId}/violation`, {
+  async reportViolation<T = unknown>(sessionId: string, accessToken: string, type: string, detail: string) {
+    return this.request<T>(`/interviews/${sessionId}/violation`, {
       method: 'POST',
       body: { access_token: accessToken, violation_type: type, detail },
     });
   }
 
   // ── Reports ───────────────────────────────
-  async getReport(sessionId: string) {
-    return this.request(`/reports/${sessionId}`);
+  async getReport<T = unknown>(sessionId: string) {
+    return this.request<T>(`/reports/${sessionId}`);
   }
 
   async downloadPDF(sessionId: string): Promise<Blob> {
     const currentToken = this.getToken();
-    const resp = await fetch(`${API_URL}/reports/${sessionId}/pdf`, {
-      headers: { Authorization: `Bearer ${currentToken}` },
-    });
+    let resp: Response;
+    try {
+      resp = await fetch(`${API_URL}/reports/${sessionId}/pdf`, {
+        headers: { Authorization: `Bearer ${currentToken}` },
+      });
+    } catch {
+      throw new Error(
+        'Unable to reach the PrepVista backend. Check NEXT_PUBLIC_API_URL and your backend CORS settings.'
+      );
+    }
     if (!resp.ok) throw new Error('PDF download failed');
     return resp.blob();
   }
 
   // ── Billing ───────────────────────────────
-  async createCheckout(plan: string) {
-    return this.request('/billing/checkout', {
+  async createCheckout<T = unknown>(plan: string) {
+    return this.request<T>('/billing/checkout', {
       method: 'POST',
       body: { plan },
     });
   }
 
-  async getBillingPortal() {
-    return this.request('/billing/portal', { method: 'POST' });
+  async getBillingPortal<T = unknown>() {
+    return this.request<T>('/billing/portal', { method: 'POST' });
   }
 }
 

@@ -39,11 +39,11 @@ export default function ReportPage() {
 
   useEffect(() => {
     if (!user) { router.push('/login'); return; }
-    api.getReport(sessionId)
-      .then(setReport)
+    api.getReport<ReportData>(sessionId)
+      .then((data) => setReport(data))
       .catch(() => router.push('/dashboard'))
       .finally(() => setLoading(false));
-  }, [sessionId, user]);
+  }, [router, sessionId, user]);
 
   const handleDownloadPdf = async () => {
     setDownloadingPdf(true);
@@ -53,8 +53,9 @@ export default function ReportPage() {
       const a = document.createElement('a');
       a.href = url; a.download = `PrepVista_Report_${sessionId.slice(0, 8)}.pdf`;
       a.click(); URL.revokeObjectURL(url);
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      const error = err as Error;
+      alert(error.message);
     } finally {
       setDownloadingPdf(false);
     }
@@ -64,8 +65,6 @@ export default function ReportPage() {
   if (!report) return null;
 
   const scoreColor = report.final_score >= 70 ? '#22c55e' : report.final_score >= 50 ? '#eab308' : '#ef4444';
-  const scoreClass = report.final_score >= 70 ? 'excellent' : report.final_score >= 50 ? 'good' : report.final_score >= 30 ? 'needs-work' : 'early';
-
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Nav */}

@@ -4,11 +4,49 @@
  * Voice-based interview with AI orb, timer, transcript, and Web Speech API.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 
 type State = 'INITIALIZING' | 'GREETING' | 'LISTENING' | 'PROCESSING' | 'SPEAKING' | 'PAUSED' | 'FINISHED';
+type TranscriptMessage = { role: string; text: string };
+type SpeechRecognitionLike = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: unknown) => void) | null;
+  onerror: ((event: unknown) => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+type SpeechRecognitionWindow = Window & typeof globalThis & {
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  SpeechRecognition?: SpeechRecognitionConstructor;
+};
+type SpeechRecognitionEventLike = {
+  resultIndex: number;
+  results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }>;
+};
+type SpeechRecognitionErrorLike = { error: string };
+type InterviewReply = {
+  text?: string;
+  turn?: number;
+  action?: string;
+  detail?: string;
+};
+type SessionData = {
+  access_token: string;
+  duration_seconds: number;
+  max_turns: number;
+};
+type AppError = Error & { message: string };
+
+function readStoredSession(): SessionData | null {
+  if (typeof window === 'undefined') return null;
+  const stored = sessionStorage.getItem('pv_session');
+  return stored ? JSON.parse(stored) as SessionData : null;
+}
 
 export default function LiveInterviewPage() {
   const params = useParams();
@@ -16,96 +54,36 @@ export default function LiveInterviewPage() {
   const sessionId = params.sessionId as string;
 
   const [state, setState] = useState<State>('INITIALIZING');
-  const [transcript, setTranscript] = useState<Array<{ role: string; text: string }>>([]);
+  const [transcript, setTranscript] = useState<TranscriptMessage[]>([]);
   const [currentText, setCurrentText] = useState('');
   const [timer, setTimer] = useState(0);
-  const [maxDuration, setMaxDuration] = useState(600);
+  const [maxDuration] = useState(() => readStoredSession()?.duration_seconds ?? 600);
   const [turnCount, setTurnCount] = useState(0);
-  const [maxTurns, setMaxTurns] = useState(6);
-  const [accessToken, setAccessToken] = useState('');
+  const [maxTurns] = useState(() => readStoredSession()?.max_turns ?? 6);
+  const [accessToken] = useState(() => readStoredSession()?.access_token ?? '');
   const [error, setError] = useState('');
 
-  const recognitionRef = useRef<any>(null);
-  const timerRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
 
-  // Load session data
-  useEffect(() => {
-    const stored = sessionStorage.getItem('pv_session');
-    if (!stored) { router.push('/dashboard'); return; }
-    const session = JSON.parse(stored);
-    setAccessToken(session.access_token);
-    setMaxDuration(session.duration_seconds);
-    setMaxTurns(session.max_turns);
-
-    // Auto-start greeting
-    getGreeting(session.access_token);
-  }, []);
-
-  // Timer
-  useEffect(() => {
-    timerRef.current = setInterval(() => {
-      setTimer((t) => {
-        if (t >= maxDuration) {
-          handleFinish();
-          return t;
-        }
-        return t + 1;
-      });
-    }, 1000);
-    return () => clearInterval(timerRef.current);
-  }, [maxDuration]);
-
-  // Auto-scroll transcript
-  useEffect(() => {
-    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [transcript]);
-
-  const getGreeting = async (token: string) => {
-    setState('GREETING');
-    try {
-      const result = await api.submitAnswer(sessionId, '', token);
-      const aiText = result.text || 'Hello! Let\'s begin your interview.';
-      addTranscript('assistant', aiText);
-      speakText(aiText);
-      setTurnCount(result.turn || 0);
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
-
-  const addTranscript = (role: string, text: string) => {
+  function addTranscript(role: string, text: string) {
     setTranscript((prev) => [...prev, { role, text }]);
-  };
+  }
 
-  const speakText = (text: string) => {
-    setState('SPEAKING');
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
-      // Try to find a good voice
-      const voices = speechSynthesis.getVoices();
-      const preferred = voices.find(v => v.name.includes('Google') || v.name.includes('Natural')) || voices[0];
-      if (preferred) utterance.voice = preferred;
-      utterance.onend = () => startListening();
-      speechSynthesis.speak(utterance);
-    } else {
-      setTimeout(() => startListening(), 2000);
-    }
-  };
-
-  const startListening = () => {
+  function startListening() {
     setState('LISTENING');
     setCurrentText('');
 
-    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    const speechWindow = window as SpeechRecognitionWindow;
+    const SpeechRecognitionCtor = speechWindow.webkitSpeechRecognition || speechWindow.SpeechRecognition;
+
+    if (!SpeechRecognitionCtor) {
       setError('Speech recognition not supported. Please use Chrome.');
       return;
     }
 
-    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-    const recognition = new SpeechRecognition();
+    const recognition = new SpeechRecognitionCtor();
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
@@ -113,24 +91,108 @@ export default function LiveInterviewPage() {
 
     let finalTranscript = '';
 
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event: unknown) => {
+      const speechEvent = event as SpeechRecognitionEventLike;
       let interim = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript + ' ';
+      for (let i = speechEvent.resultIndex; i < speechEvent.results.length; i++) {
+        if (speechEvent.results[i].isFinal) {
+          finalTranscript += speechEvent.results[i][0].transcript + ' ';
         } else {
-          interim += event.results[i][0].transcript;
+          interim += speechEvent.results[i][0].transcript;
         }
       }
       setCurrentText(finalTranscript + interim);
     };
 
-    recognition.onerror = (e: any) => {
-      if (e.error !== 'aborted') console.error('Speech error:', e.error);
+    recognition.onerror = (event: unknown) => {
+      const speechError = event as SpeechRecognitionErrorLike;
+      if (speechError.error !== 'aborted') console.error('Speech error:', speechError.error);
     };
 
     recognition.start();
-  };
+  }
+
+  function speakText(text: string) {
+    setState('SPEAKING');
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      const voices = speechSynthesis.getVoices();
+      const preferred = voices.find((v) => v.name.includes('Google') || v.name.includes('Natural')) || voices[0];
+      if (preferred) utterance.voice = preferred;
+      utterance.onend = () => startListening();
+      speechSynthesis.speak(utterance);
+    } else {
+      setTimeout(() => startListening(), 2000);
+    }
+  }
+
+  async function getGreeting(token: string) {
+    setState('GREETING');
+    try {
+      const result = await api.submitAnswer<InterviewReply>(sessionId, '', token);
+      const aiText = result.text || 'Hello! Let\'s begin your interview.';
+      addTranscript('assistant', aiText);
+      speakText(aiText);
+      setTurnCount(result.turn || 0);
+    } catch (err: unknown) {
+      const error = err as AppError;
+      setError(error.message);
+    }
+  }
+
+  async function handleFinish() {
+    setState('FINISHED');
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    if (timerRef.current !== null) clearInterval(timerRef.current);
+    speechSynthesis.cancel();
+
+    try {
+      const result = await api.finishInterview(sessionId, accessToken, timer);
+      sessionStorage.setItem('pv_result', JSON.stringify(result));
+      router.push(`/interview/${sessionId}/report`);
+    } catch (err: unknown) {
+      const error = err as AppError;
+      setError(error.message);
+    }
+  }
+
+  // Load session data
+  useEffect(() => {
+    const initialSession = readStoredSession();
+    if (!initialSession) { router.push('/dashboard'); return; }
+
+    // Auto-start greeting
+    const greetingTimer = setTimeout(() => {
+      void getGreeting(initialSession.access_token);
+    }, 0);
+    return () => clearTimeout(greetingTimer);
+  }, [getGreeting, router]);
+
+  // Timer
+  useEffect(() => {
+    timerRef.current = setInterval(() => {
+      setTimer((t) => {
+        if (t >= maxDuration) {
+          void handleFinish();
+          return t;
+        }
+        return t + 1;
+      });
+    }, 1000);
+    return () => {
+      if (timerRef.current !== null) clearInterval(timerRef.current);
+    };
+  }, [maxDuration, handleFinish]);
+
+  // Auto-scroll transcript
+  useEffect(() => {
+    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [transcript]);
 
   const stopListeningAndSubmit = async () => {
     if (recognitionRef.current) {
@@ -146,10 +208,10 @@ export default function LiveInterviewPage() {
     setState('PROCESSING');
 
     try {
-      const result = await api.submitAnswer(sessionId, userText, accessToken);
+      const result = await api.submitAnswer<InterviewReply>(sessionId, userText, accessToken);
 
       if (result.action === 'error') {
-        setError(result.detail);
+        setError(result.detail || 'Something went wrong.');
         return;
       }
 
@@ -160,9 +222,9 @@ export default function LiveInterviewPage() {
           addTranscript('assistant', result.text);
           speakText(result.text);
           // After speaking, finish
-          setTimeout(() => handleFinish(), 3000);
+          setTimeout(() => { void handleFinish(); }, 3000);
         } else {
-          handleFinish();
+          void handleFinish();
         }
         return;
       }
@@ -170,25 +232,10 @@ export default function LiveInterviewPage() {
       const aiText = result.text || 'Could you tell me more?';
       addTranscript('assistant', aiText);
       speakText(aiText);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const error = err as AppError;
+      setError(error.message);
       startListening();
-    }
-  };
-
-  const handleFinish = async () => {
-    setState('FINISHED');
-    if (recognitionRef.current) { recognitionRef.current.stop(); recognitionRef.current = null; }
-    if (timerRef.current) clearInterval(timerRef.current);
-    speechSynthesis.cancel();
-
-    try {
-      const result = await api.finishInterview(sessionId, accessToken, timer);
-      // Store result and navigate to report
-      sessionStorage.setItem('pv_result', JSON.stringify(result));
-      router.push(`/interview/${sessionId}/report`);
-    } catch (err: any) {
-      setError(err.message);
     }
   };
 
@@ -240,7 +287,7 @@ export default function LiveInterviewPage() {
         {/* Live typing indicator */}
         {state === 'LISTENING' && currentText && (
           <div className="max-w-lg text-center px-4">
-            <p className="text-sm text-slate-300 italic">"{currentText}"</p>
+            <p className="text-sm text-slate-300 italic">&quot;{currentText}&quot;</p>
           </div>
         )}
 

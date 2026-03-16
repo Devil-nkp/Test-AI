@@ -33,8 +33,8 @@ export default function DashboardPage() {
       return;
     }
     if (user) {
-      api.getDashboard()
-        .then(setData)
+      api.getDashboard<DashboardData>()
+        .then((dashboard) => setData(dashboard))
         .catch(console.error)
         .finally(() => setLoadingData(false));
     }

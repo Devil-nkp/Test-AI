@@ -4,26 +4,38 @@
  * Account settings: profile, billing management, data deletion.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+interface BillingPortalResult {
+  portal_url: string;
+}
+
 export default function SettingsPage() {
-  const { user, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
   const router = useRouter();
   const [loadingPortal, setLoadingPortal] = useState(false);
 
-  if (!user) { router.push('/login'); return null; }
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [loading, router, user]);
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="orb" /></div>;
+  if (!user) return null;
 
   const handleBillingPortal = async () => {
     setLoadingPortal(true);
     try {
-      const { portal_url } = await api.getBillingPortal();
-      window.location.href = portal_url;
-    } catch (err: any) {
-      alert(err.message);
+      const { portal_url } = await api.getBillingPortal<BillingPortalResult>();
+      router.push(portal_url);
+    } catch (err: unknown) {
+      const error = err as Error;
+      alert(error.message);
     } finally {
       setLoadingPortal(false);
     }
@@ -76,6 +88,10 @@ export default function SettingsPage() {
             Your interview transcripts and resume data are stored encrypted.
             You may request deletion of all your data at any time.
           </p>
+          <div className="mb-4 flex flex-wrap gap-3">
+            <Link href="/privacy" className="text-sm text-blue-600 hover:underline">Privacy Policy</Link>
+            <Link href="/terms" className="text-sm text-blue-600 hover:underline">Terms of Service</Link>
+          </div>
           <button className="text-sm text-red-500 hover:text-red-700 font-medium">
             Request Data Deletion
           </button>

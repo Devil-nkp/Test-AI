@@ -4,28 +4,22 @@
  * Global authentication state management.
  */
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { api } from '@/lib/api';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { api, ApiUser } from '@/lib/api';
 import { useRouter } from 'next/navigation';
+import { getSupabaseBrowserClient, hasSupabaseBrowserConfig } from '@/lib/supabase-browser';
 
-interface User {
-  id: string;
-  email: string;
-  full_name: string | null;
-  plan: string;
-  subscription_status: string;
-  onboarding_completed: boolean;
-  prep_goal: string | null;
-  usage: { plan: string; used: number; limit: number; remaining: number };
-}
+export type User = ApiUser;
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, fullName: string) => Promise<void>;
-  logout: () => void;
+  loginWithGoogle: () => Promise<void>;
+  logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  googleEnabled: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,16 +28,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const googleEnabled = hasSupabaseBrowserConfig();
 
-  const refreshUser = async () => {
+  const hydrateFromSupabase = useCallback(async () => {
+    if (api.getToken() || !googleEnabled) {
+      return;
+    }
+
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { data } = await supabase.auth.getSession();
+      const session = data.session;
+
+      if (session?.access_token && session.refresh_token) {
+        api.setTokens(session.access_token, session.refresh_token);
+      }
+    } catch {
+      // Ignore optional browser session hydration issues.
+    }
+  }, [googleEnabled]);
+
+  const refreshUser = useCallback(async () => {
     try {
       api.loadTokens();
+      await hydrateFromSupabase();
       if (!api.getToken()) {
         setUser(null);
         setLoading(false);
         return;
       }
-      const data = await api.getMe();
+      const data = await api.getMe<User>();
       setUser(data);
     } catch {
       setUser(null);
@@ -51,11 +65,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [hydrateFromSupabase]);
 
   useEffect(() => {
-    refreshUser();
-  }, []);
+    void refreshUser();
+  }, [refreshUser]);
 
   const login = async (email: string, password: string) => {
     await api.login(email, password);
@@ -69,14 +83,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/dashboard');
   };
 
-  const logout = () => {
+  const loginWithGoogle = async () => {
+    if (!googleEnabled) {
+      throw new Error('Google sign-in is not configured yet.');
+    }
+
+    const supabase = getSupabaseBrowserClient();
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: {
+          prompt: 'select_account',
+        },
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (data.url) {
+      window.location.assign(data.url);
+    }
+  };
+
+  const logout = async () => {
     api.logout();
+    if (googleEnabled) {
+      try {
+        const supabase = getSupabaseBrowserClient();
+        await supabase.auth.signOut();
+      } catch {
+        // Ignore sign-out issues from the optional browser client.
+      }
+    }
     setUser(null);
     router.push('/');
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, loginWithGoogle, logout, refreshUser, googleEnabled }}>
       {children}
     </AuthContext.Provider>
   );

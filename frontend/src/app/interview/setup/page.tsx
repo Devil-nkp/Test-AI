@@ -4,11 +4,18 @@
  * Resume upload, plan selection, duration, and proctoring mode.
  */
 
-import { useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+
+interface SetupResult {
+  session_id: string;
+  access_token: string;
+  duration_seconds: number;
+  max_turns: number;
+}
 
 export default function InterviewSetupPage() {
   const { user, loading } = useAuth();
@@ -20,8 +27,14 @@ export default function InterviewSetupPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [loading, router, user]);
+
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="orb" /></div>;
-  if (!user) { router.push('/login'); return null; }
+  if (!user) return null;
 
   const plan = user.plan;
 
@@ -38,12 +51,13 @@ export default function InterviewSetupPage() {
       formData.append('duration', String(duration));
       formData.append('proctoring_mode', proctoringMode);
 
-      const result = await api.setupInterview(formData);
+      const result = await api.setupInterview<SetupResult>(formData);
       // Store session info and navigate
       sessionStorage.setItem('pv_session', JSON.stringify(result));
       router.push(`/interview/${result.session_id}`);
-    } catch (err: any) {
-      setError(err.message || 'Failed to set up interview.');
+    } catch (err: unknown) {
+      const error = err as Error;
+      setError(error.message || 'Failed to set up interview.');
     } finally {
       setSubmitting(false);
     }
