@@ -1,0 +1,203 @@
+@import "tailwindcss";
+
+:root {
+  --pv-blue: #2563eb;
+  --pv-indigo: #4f46e5;
+  --pv-slate-50: #f8fafc;
+  --pv-slate-100: #f1f5f9;
+  --pv-slate-200: #e2e8f0;
+  --pv-slate-400: #94a3b8;
+  --pv-slate-600: #475569;
+  --pv-slate-800: #1e293b;
+  --pv-slate-900: #0f172a;
+}
+
+body {
+  background: var(--pv-slate-50);
+  color: var(--pv-slate-800);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Orb Animation (distinctive PrepVista element) ── */
+.orb {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #60a5fa, #2563eb, #4f46e5);
+  box-shadow: 0 0 40px rgba(37, 99, 235, 0.4), 0 0 80px rgba(79, 70, 229, 0.2);
+  animation: orb-pulse 3s ease-in-out infinite;
+}
+
+.orb.speaking {
+  animation: orb-speak 0.6s ease-in-out infinite;
+  box-shadow: 0 0 60px rgba(37, 99, 235, 0.6), 0 0 120px rgba(79, 70, 229, 0.3);
+}
+
+.orb.listening {
+  animation: orb-listen 2s ease-in-out infinite;
+  background: radial-gradient(circle at 30% 30%, #86efac, #22c55e, #16a34a);
+  box-shadow: 0 0 40px rgba(34, 197, 94, 0.4);
+}
+
+@keyframes orb-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes orb-speak {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+@keyframes orb-listen {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+
+/* ── Button styles ───────────────────────────── */
+.btn-primary {
+  background: linear-gradient(135deg, var(--pv-blue), var(--pv-indigo));
+  color: white;
+  padding: 12px 28px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 15px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-secondary {
+  background: white;
+  color: var(--pv-slate-800);
+  padding: 12px 28px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 15px;
+  border: 1px solid var(--pv-slate-200);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  border-color: var(--pv-blue);
+  color: var(--pv-blue);
+}
+
+/* ── Card styles ─────────────────────────────── */
+.card {
+  background: white;
+  border: 1px solid var(--pv-slate-200);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* ── Score badge ─────────────────────────────── */
+.score-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 16px;
+  color: white;
+}
+
+.score-badge.excellent { background: #22c55e; }
+.score-badge.good { background: #eab308; }
+.score-badge.needs-work { background: #f97316; }
+.score-badge.early { background: #ef4444; }
+
+/* ── Classification badges ───────────────────── */
+.cls-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cls-badge.strong { background: #dcfce7; color: #166534; }
+.cls-badge.partial { background: #fef9c3; color: #854d0e; }
+.cls-badge.vague { background: #ffedd5; color: #9a3412; }
+.cls-badge.wrong { background: #fee2e2; color: #991b1b; }
+.cls-badge.silent { background: #f1f5f9; color: #64748b; }
+
+/* ── Locked content blur ─────────────────────── */
+.locked-content {
+  filter: blur(6px);
+  user-select: none;
+  pointer-events: none;
+  position: relative;
+}
+
+.locked-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  z-index: 10;
+}
+
+/* ── Rubric bar ──────────────────────────────── */
+.rubric-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.rubric-bar-bg {
+  flex: 1;
+  height: 10px;
+  background: var(--pv-slate-200);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.rubric-bar-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.5s ease;
+}
+
+/* ── Input styles ────────────────────────────── */
+.input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--pv-slate-200);
+  border-radius: 8px;
+  font-size: 15px;
+  transition: border-color 0.2s;
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--pv-blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
